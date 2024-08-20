@@ -94,107 +94,98 @@ const CourseInfo = {
     ];
   
     return result;
-  }
-  
-  const result = getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions);
-  
-  console.log(result);
-////////
+}
+// const result = getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions);
 
-// Check if the assignment group belongs to the course.
-function isValidCourseAssignmentGroup(CourseInfo, AssignmentGroup) {
-    return CourseInfo.id === AssignmentGroup.course_id;
-  }
+// console.log(result);
 
-  // We want to Check if a learner's submission is valid.////
-  function isValidSubmission(submission, assignment) {
-    const score = submission.submission.score;
-    const pointsPossible = assignment.points_possible;
+  const learnerMap = new Map();
   
-    if (pointsPossible === 0 || typeof score !== "number" || isNaN(score)) {
-      return false;
-    } else { 
-      return true;
-    }
-  }
-  
-  // Calculate the weighted average of a learner's scores.
-  function calculateWeightedAverage(learnerData) {
-    return (learnerData.totalScore / learnerData.totalWeight) * 100;
-  }
-  
-  // Process learner data, calculate scores, and return the results.
-  function processLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions) {
-    if (!isValidCourseAssignmentGroup(CourseInfo, AssignmentGroup)) {
-      throw new Error("Invalid input: AssignmentGroup does not belong to the course.");
-    }
-  
-    const assignments = AssignmentGroup.assignments;
-    const assignmentScores = {};
-    const learnerData = {};
-  
-    for (const submission of LearnerSubmissions) {
-      const learnerID = submission.learner_id;
-      const assignmentID = submission.assignment_id;
-      const assignment = assignments.find((a) => a.id === assignmentID);
-  
-      if (!assignment || new Date(submission.submission.submitted_at) > new Date(assignment.due_at)) {
-        continue;
+     for (let i = 0; i < length; i++) {
+      let learnerID = submissionLearner[i].learner_id;
+      let assignmentID = submissionId[i].assignment_id;
+      let submissionVar = submission[i].submission;
+      let submittedDate = submissionDate[i].submission.submitted_at;
+      let learnerScore = submissionScore[i].submission.score;
+      if (!learnerMap.has(learnerID)) {
+        // If doesn't exist in Map
+        learnerMap.set(learnerID, [[assignmentID, submissionVar]]);
+      } else {
+        // If does exist in Map
+        learnerMap.get(learnerID).push([assignmentID, submissionVar]);
       }
-  
-      if (isValidSubmission(submission, assignment)) {
-        if (!learnerData[learnerID]) {
-          learnerData[learnerID] = {
-            id: learnerID,
-            totalScore: 0,
-            totalWeight: 0,
-          };
+    }
+
+    learnerMap.forEach((value, key) => {
+      let student = {};
+      student["id"] = key;
+      student["avg"] = 0;
+      let total_score = 0;
+      let total_possible_score = 0;
+
+      for (let j = 0; j < value.length; j++) {
+        // console.log(value[j]);
+        const submittedAtDate = new Date(value[j][1].submitted_at);
+
+        const dueAtDate = new Date(ag.assignments[value[j][0] - 1].due_at);
+
+        const currentDate = new Date();
+
+        try {
+          if (dueAtDate < currentDate) {
+            let learnerAssignId = value[j][0];
+            let assignmentId = ag.assignments[value[j][0] - 1].id;
+            let pointsPossible =
+              ag.assignments[value[j][0] - 1].points_possible;
+            let submissionScore = value[j][1].score;
+
+            student[`${value[j][0]}`] = submissionScore / pointsPossible;
+
+            if (learnerAssignId === assignmentId) {
+              if (submittedAtDate > dueAtDate) {
+                // Returns a decimal to the nearest hundredth, uses parseFloat() to convert back to a number
+                // Can use Number() or +() instead of parseFloat() in this scenerio
+                student[`${value[j][0]}`] = parseFloat(
+                  ((submissionScore / pointsPossible) * 0.9).toFixed(2)
+                );
+                total_score += submissionScore * 0.9;
+                total_possible_score += pointsPossible;
+              } else {
+                total_score += submissionScore;
+                total_possible_score += pointsPossible;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error processing data:", error.message);
+          break;
         }
-  
-        const score = submission.submission.score;
-        const pointsPossible = assignment.points_possible;
-        learnerData[learnerID].totalScore += (score / pointsPossible) * pointsPossible;
-        learnerData[learnerID].totalWeight += pointsPossible;
-        assignmentScores[assignmentID] = (score / pointsPossible) * 100;
       }
-    }
-  
-    return { learnerData, assignmentScores };
+
+      student["avg"] = total_score / total_possible_score;
+      result.push(student);
+    });
+
+
+//   catch (error) {
+//     console.log(`Error: ${error.message}`);
+//   }
+//   return result;
+
+
+const result = getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions);
+try {
+  if (result.length !== 0) {
+    console.log(result);
   }
+} catch (error) {
+  console.log(`Error: ${error.message}`);
+}
   
-  // Get and format learner data, including scores and averages.
-  function getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions) {
-    try {
-      const { learnerData, assignmentScores } = processLearnerData(
-        CourseInfo,
-        AssignmentGroup,
-        LearnerSubmissions
-      );
-    
-      const results = [];
-    
-      for (const learnerID in learnerData) {
-        const learner = learnerData[learnerID];
-        const weightedAverage = calculateWeightedAverage(learner);
-    
-        const learnerResult = {
-          id: learner.id,
-          avg: weightedAverage,
-        };
-    
-        for (const assignmentID in assignmentScores) {
-          learnerResult[assignmentID] = assignmentScores[assignmentID];
-        }
-    
-        results.push(learnerResult);
-      }
-    
-      return results;
-       // Get learner data and handle potential errors.
-    } catch(error) {
-      console.error(error.message);
-    }
-   
-  }
+//   const result = getLearnerData(CourseInfo, AssignmentGroup, LearnerSubmissions);
+
+// console.log(result);
+// ////////
+
   
-  
+    
